@@ -1,0 +1,165 @@
+package com.jlsoft.o2o.product.service;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.stereotype.Service;
+
+import com.jlsoft.framework.JLBill;
+import com.jlsoft.framework.dataset.DataSet;
+
+/**
+ * 商品库存查询等功能 2015-12-15 上午10:38:57
+ * 
+ * @author Uktar
+ * 
+ */
+@Service("productQueryService")
+public class ProductQueryService extends JLBill {
+
+	/**
+	 * 查询库存
+	 * 
+	 * @param XmlData
+	 * @return 2015-12-15 上午11:19:40
+	 */
+	public Map<String, Object> queryStockNum(String XmlData) throws Exception{
+		Map map = new HashMap();
+		if (XmlData == null) {
+			map.put("STATE", "0");
+			return map;
+		}
+		
+		cds = new DataSet(XmlData);
+		// 主体ID
+		String ztid = cds.getField("ZTID", 0);
+		// 区域id
+		String dqxx01 = cds.getField("DQXX01", 0);
+		// 商品id
+		String spxx01 = cds.getField("SPXX01", 0);
+		// 品牌id
+		String ppb01 = cds.getField("PPB01", 0);
+		
+		// 检查参数
+		if (ztid == null || dqxx01 == null || spxx01 == null || ppb01 == null) {
+			map.put("STATE", "0");
+			return map;
+		}
+		
+		//检查品牌是否入驻,判断主体id
+		Map brandMap = this.queryEnteringBrand(XmlData);		
+		if(!brandMap.isEmpty() && brandMap.size() > 0){
+			//如果已经入驻，获取主体ID
+			ztid = queryOrderZtid(XmlData);
+		}
+		
+		//查询库存信息
+		map = queryStockNumByParam(ztid, dqxx01, spxx01);
+		map.put("STATE", "1");
+		return map;
+	}
+
+
+
+
+	/**
+	 * 根据主体ID及品牌ID查询品牌是否入驻
+	 * 
+	 * @param XmlData
+	 * @return 2015-12-15 上午10:45:59
+	 */
+	public Map<String, Object> queryEnteringBrand(String XmlData)
+			throws Exception {
+		//如果只是库存查询使用，下边的参数检查可以去掉
+		Map map = new HashMap();
+		if (XmlData == null) {
+			return map;
+		}
+
+		cds = new DataSet(XmlData);
+		// 主体ID
+		String ztid = cds.getField("ZTID", 0);
+		// 品牌id
+		String ppb01 = cds.getField("PPB01", 0);
+		// 检查参数
+		if (ztid == null || ppb01 == null) {
+			return map;
+		}
+
+		// 查询品牌是否入驻
+		String querySql = "select ZTID, HBID, PPB01 from w_gsgxpp where ZTID ='"
+				+ ztid + "' and PPB01='" + ppb01 + "'";
+		map = queryForMap(o2o, querySql);
+		
+		return map;
+	}
+
+
+
+
+	/**
+	 * 确定订单的主体ID
+	 * 
+	 * @param XmlData
+	 * @return 2015-12-15 上午11:28:40
+	 */
+	public String queryOrderZtid(String XmlData) throws Exception {
+
+		//如果只是库存查询使用，下边的参数检查可以去掉
+		String ztid = "";
+		if (XmlData == null) {
+			return ztid;
+		}
+
+		cds = new DataSet(XmlData);
+		// 主体ID
+		ztid = cds.getField("ZTID", 0);
+		// 区域id
+		String dqxx01 = cds.getField("DQXX01", 0);
+		// 检查参数
+		if (ztid == null || dqxx01 == null) {
+			return ztid;
+		}
+
+		// 根据主体ID和区域ID能查询出伙伴id,如果没有记录，主体为生产企业
+		String querySql = "select HBID from w_gsgxqy where ztid='" + ztid
+				+ "' and DQBZM01='" + dqxx01 + "'";
+		Map map = queryForMap(o2o, querySql);
+		if (!map.isEmpty()) {
+			Object obj = map.get("HBID");
+			if (obj != null) {
+				ztid = obj.toString();
+			}
+		}
+		return ztid;
+	}
+
+
+
+
+	/**
+	 * 查询库存
+	 * 
+	 * @param ztid 主体id
+	 * @param dqxx01 区域id
+	 * @param spxx01 商品id
+	 * @return
+	 * @throws Exception 2015-12-15 下午1:29:46
+	 */
+	private Map<String, Object> queryStockNumByParam(String ztid, String dqxx01,
+			String spxx01) throws Exception {
+		Map map = new HashMap();
+
+		String querySql = "SELECT sp.SPXX04,sum( K.CKSP04 + K.CKSP05 + K.KCXX01 - K.KCXX02 ) number "
+				+ " FROM W_KCXX K LEFT JOIN "
+				+ " (SELECT dqck.ck01 from w_dqck dqck LEFT JOIN ck ON dqck.ck01= ck.ck01 WHERE dqck.dqxx01='"
+				+ dqxx01
+				+ "' and dqck.status=0) a"
+				+ " ON K.ck01 = a.ck01 "
+				+ " LEFT JOIN W_SPXX sp ON K.spxx01 = sp.spxx01 "
+				+ "WHERE K.SPXX01='" + spxx01 + "' AND K.ZCXX01='" + ztid + "'";
+
+		map = queryForMap(o2o, querySql);
+		return map;
+	}
+}

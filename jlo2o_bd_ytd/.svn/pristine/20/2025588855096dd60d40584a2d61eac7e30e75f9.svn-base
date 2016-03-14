@@ -1,0 +1,22 @@
+<dl class="w12">
+  <dt class="w12">订单中心</dt>
+  <dd class="w12"><a>我的订单</a></dd>
+</dl>
+<dl class="w12">
+  <dt class="w12">关注中心</dt>
+  <dd class="w12"><a>关注商品</a></dd>
+  <dd class="w12"><a>关注店铺</a></dd>
+</dl>
+<dl class="w12">
+  <dt class="w12">资产中心</dt>
+  <dd class="w12"><a>余额</a></dd>
+  <dd class="w12"><a>优惠券</a></dd>
+  <dd class="w12"><a>积分</a></dd>
+</dl>
+<dl class="w12">
+  <dt class="w12">设置</dt>
+  <dd class="w12"><a>个人信息</a></dd>
+  <dd class="w12"><a>收货地址</a></dd>
+  <dd class="w12"><a>账户安全</a></dd>
+  <dd class="w12"><a>消费记录</a></dd>  
+</dl>

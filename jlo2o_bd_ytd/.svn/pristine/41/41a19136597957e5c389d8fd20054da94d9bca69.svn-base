@@ -1,0 +1,57 @@
+package com.jlsoft.o2o.qxgl.service;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import com.jlsoft.framework.JLBill;
+import com.jlsoft.framework.dataset.DataSet;
+@Controller
+@RequestMapping("/Oper_FSFW")
+public class Oper_FSFW extends JLBill{
+	
+	/**
+	 * 插入生产企业的辐射区域范围
+	 * 2015/12/14
+	 * NineDragon
+	 * @param XmlData
+	 * @throws Exception
+	 */
+	@RequestMapping("/insert_SCFSFW.action")
+	public Map<String, Object> insert_SCFSFW(String XmlData) throws Exception{
+		cds=new DataSet(XmlData);
+		String[] QYFW = cds.getField("array", 0).split(",");
+		String zcxx01 = cds.getField("zcxx01", 1);
+		String type = cds.getField("type", 2);
+		Map<String, Object> map=new HashMap<String, Object>();
+		try {
+			String sql ="DELETE FROM w_dqck WHERE ck01 = (SELECT ck01 FROM ck WHERE gsxx01='"+zcxx01+"')";
+			Map row = getRow(sql, null, 0);
+			int i = execSQL(o2o, sql, row);
+			
+			int i1=0;
+			if(QYFW.length>0){
+				for(int j=0 ; j<QYFW.length ; j++){
+			        String s = new String(QYFW[j]);   
+			        String a[] = s.split("-");  
+			        String dqxx01 = a[0];
+			        String dqxx02 = a[1];
+					String sql1="INSERT INTO w_dqck(dqxx01,ck01,dqxx02,ck02,type) VALUES ('"+dqxx01+"',(SELECT ck01 FROM ck WHERE gsxx01='"+zcxx01+"'),'"+dqxx02+"',(SELECT ck02 FROM ck WHERE gsxx01='"+zcxx01+"'),'"+type+"')";
+					System.out.println(sql1);
+					Map row1 = getRow(sql1, null, 0);
+					i1+=execSQL(o2o, sql1, row); 
+				}
+			}
+			if (i1 > 0) {
+				map.put("STATE", "0");
+			} else {
+				map.put("STATE", "1");
+			}
+		} catch (Exception e) {
+			map.put("STATE", "1");
+		}
+		return map;
+	}
+	
+}

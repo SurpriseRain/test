@@ -1,0 +1,127 @@
+package com.jlsoft.o2o.qxgl.service;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import com.jlsoft.framework.JLBill;
+import com.jlsoft.framework.dataset.DataSet;
+@Controller
+@RequestMapping("/Oper_FSFW")
+public class Oper_FSFW extends JLBill{
+	
+	/**
+	 * 插入生产企业的辐射区域范围
+	 * 2015/12/14
+	 * NineDragon
+	 * @param XmlData
+	 * @throws Exception
+	 */
+	@RequestMapping("/insert_SCFSFW.action")
+	public Map<String, Object> insert_SCFSFW(String XmlData) throws Exception{
+		cds=new DataSet(XmlData);
+		String[] QYFW = cds.getField("array", 0).split(",");
+		String zcxx01 = cds.getField("zcxx01", 1);
+		String type = cds.getField("type", 2);
+		Map<String, Object> map=new HashMap<String, Object>();
+		try {
+			String sql ="DELETE FROM w_dqck WHERE ck01 = (SELECT ck01 FROM ck WHERE gsxx01='"+zcxx01+"')";
+			Map row = getRow(sql, null, 0);
+			int i = execSQL(o2o, sql, row);
+			
+			int i1=0;
+			if(QYFW.length>0){
+				for(int j=0 ; j<QYFW.length ; j++){
+			        String s = new String(QYFW[j]);   
+			        String a[] = s.split("-");  
+			        String dqxx01 = a[0];
+			        String dqxx02 = a[1];
+			        
+			        //比较是否省级单位，
+			        List<String> Nlist = new ArrayList<String>();
+			        if("0000".equals(dqxx01.substring(2))){
+						String citySql = "SELECT DQBZM01 DQXX01, DQBZM02 "
+									+ "FROM DQBZM WHERE DQBZM_DQBZM01 = '" + dqxx01 +  "' "
+									+ "AND DQBZM03 = 2 ORDER BY DQBZM01";
+						List cList = queryForList(o2o, citySql);
+						for (int Nj = 0; Nj < cList.size(); Nj++){
+							 Map Nmap = (Map)cList.get(Nj);
+							 String Ns =  (String) Nmap.get("DQXX01");
+							 String Nss =  (String) Nmap.get("DQBZM02");
+							 String N = Ns+"-"+Nss;
+							 Nlist.add(N);
+						}
+						 for (int n = 0; n < Nlist.size(); n++) {
+						        String ss = new String(Nlist.get(n));   
+						        String as[] = ss.split("-");  
+						        String dq01 = as[0];
+						        String dq02 = as[1];
+							String  NSQL = "INSERT INTO w_dqck(dqxx01,ck01,dqxx02,ck02,type) VALUES ('"+dq01+"',(SELECT ck01 FROM ck WHERE gsxx01='"+zcxx01+"'),'"+dq02+"',(SELECT ck02 FROM ck WHERE gsxx01='"+zcxx01+"'),'"+type+"')";
+								Map Nrow = getRow(NSQL, null, 0);
+								i1+=execSQL(o2o, NSQL, row);
+						 }
+					}else{
+						//省份单位
+						String sql1="INSERT INTO w_dqck(dqxx01,ck01,dqxx02,ck02,type) VALUES ('"+dqxx01+"',(SELECT ck01 FROM ck WHERE gsxx01='"+zcxx01+"'),'"+dqxx02+"',(SELECT ck02 FROM ck WHERE gsxx01='"+zcxx01+"'),'"+type+"')";
+						System.out.println(sql1);
+						Map row1 = getRow(sql1, null, 0);
+						i1+=execSQL(o2o, sql1, row);
+						
+					}
+				}
+			}
+			
+			//判断插入的是物流企业    1表示物流 
+			String lx = cds.getField("lx", 3);
+			if(lx.equals("1")){
+				//物流企业的辐射范围进行修改时，需要全部更新修改状态
+				
+				//重复的状态 赋予状态为1**************************
+				List<String> Nlists = new ArrayList<String>();
+				String citySqls = "SELECT dqxx01 FROM w_dqck WHERE TYPE='2' AND dqxx01  IN (SELECT dqxx01 FROM  w_dqck WHERE ck01=(SELECT ck01 FROM ck WHERE gsxx01='"+zcxx01+"'))";
+				List cLists = queryForList(o2o, citySqls);
+				for (int Njs = 0; Njs < cLists.size(); Njs++){
+					 Map Nmap = (Map)cLists.get(Njs);
+					 String Ns =  (String) Nmap.get("dqxx01");
+					 Nlists.add(Ns);
+				}
+				for (int n = 0; n < Nlists.size(); n++) {
+			        String ss = new String(Nlists.get(n)); 
+			        System.out.println(ss);
+			        String  NSQL = "UPDATE w_dqck SET STATUS='1' WHERE dqxx01='"+ss+"' AND TYPE='2'";
+			        i1+=execSQL(o2o, NSQL, row); 
+				}
+				
+				//不重复的状态 赋予状态为0**************************
+				List<String> Nlistss = new ArrayList<String>();
+				String citySqlss = "SELECT dqxx01 FROM w_dqck WHERE TYPE='2' AND dqxx01 NOT IN (SELECT dqxx01 FROM  w_dqck WHERE ck01=(SELECT ck01 FROM ck WHERE gsxx01='"+zcxx01+"'))";
+				List cListss = queryForList(o2o, citySqlss);
+				for (int Njss = 0; Njss < cListss.size(); Njss++){
+					 Map Nmaps = (Map)cListss.get(Njss);
+					 String Nsss =  (String) Nmaps.get("dqxx01");
+					 Nlistss.add(Nsss);
+				}
+				for (int nsss = 0; nsss < Nlistss.size(); nsss++) {
+			        String sss = new String(Nlistss.get(nsss)); 
+			        System.out.println(sss);
+			        String  NSQLs = "UPDATE w_dqck SET STATUS='0' WHERE dqxx01='"+sss+"' AND TYPE='2'";
+			        i1+=execSQL(o2o, NSQLs, row); 
+				}
+				
+			}
+			
+			if (i1 > 0) {
+				map.put("STATE", "0");
+			} else {
+				map.put("STATE", "1");
+			}
+		} catch (Exception e) {
+			map.put("STATE", "1");
+		}
+		return map;
+	}
+	
+}

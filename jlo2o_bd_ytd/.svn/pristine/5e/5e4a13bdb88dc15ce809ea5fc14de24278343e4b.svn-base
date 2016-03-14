@@ -1,0 +1,108 @@
+package com.jlsoft.o2o.qxgl.service; 
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import com.jlsoft.framework.JLBill;
+import com.jlsoft.framework.dataset.DataSet;
+import com.jlsoft.utils.JLTools;
+
+@Controller
+@RequestMapping("/Oper_FWQYGL")
+public class Oper_FWQYGL extends JLBill{
+
+	
+	/**
+	 * 企业审核厂商邀请
+	 */
+	@RequestMapping("/auditSQPP.action")
+	public Map<String, Object> auditSQPP(String jsonData) throws Exception{
+		Map<String, Object> resultMap = new HashMap<String, Object>();
+		try {
+			cds = new DataSet(jsonData);
+			String ztid = cds.getField("ZTID", 0);
+			String hbid = cds.getField("HBID", 0);
+			String state = cds.getField("STATE", 0);
+			String spyj = cds.getField("SPYJ", 0);
+			if (state.equals("1")) {
+				insert_DQXX(jsonData);
+			} 
+			String sql = "UPDATE W_GSGX SET STATE = '"+state+"', Notes = '"+spyj+"'"
+			             +"WHERE ztid = '"+ztid+"' AND hbid = '"+hbid+"'";
+			Map rowPPB = getRow(sql, null, 0);
+			execSQL(o2o, sql, rowPPB);
+			resultMap.put("STATE", "1");
+		} catch (Exception e) {
+			resultMap.put("STATE", "0");
+			throw e;
+		}
+		
+		return resultMap;
+	}
+	 
+	/**
+	 * 经销企业审核厂商邀请,针对大区过滤,规则,经销商在一个区域只有一个条记录,type不同可以重复
+	 * @param jsonData
+	 * @return
+	 * @throws Exception
+	 */
+	@SuppressWarnings("unused")
+	public Map<String, Object> insert_DQXX(String jsonData) throws Exception{
+		Map<String, Object> resultMap = new HashMap<String, Object>();
+		try {
+			cds = new DataSet(jsonData);
+			String dqbm = cds.getField("DQBM", 0);
+			//新增的大区编码
+			List<String> Nalist = Arrays.asList(dqbm.split(","));
+			String hbid = cds.getField("HBID", 0);
+			String sql = "SELECT a.dqxx01 FROM w_dqck a LEFT JOIN ck b ON a.ck01 = b.ck01 LEFT JOIN w_gsgx c ON c.hbid = b.gsxx01  "
+					   + "WHERE a.type = '2' AND c.hbid ='" + hbid + "'";
+			//经销企业原来的大区编码
+			List  list = queryForList(o2o, sql);
+			List<String> Odlist=new ArrayList<String>();
+			for (int i = 0; i < list.size(); i++){
+				 Map map = (Map)list.get(i);
+				 String s =  (String) map.get("dqxx01");
+				 Odlist.add(s);
+			}
+			List<String> Nlist = new ArrayList<String>(Nalist);
+			List<String> Olist = new ArrayList<String>(Odlist);
+			String SQL = "";
+			//比较大区编码是否重复
+			if (Nlist.size() < Olist.size()) {
+				 Olist.removeAll(Nlist);
+				 for (int i = 0; i < Olist.size(); i++) {
+					 SQL = "INSERT INTO W_DQCK(DQXX01,CK01,DQXX02,CK02,TYPE) " +
+						     " VALUES('"+Olist.get(i)+"',(SELECT CK01 FROM CK WHERE GSXX01 = '"+hbid+"'),(SELECT IFNULL(CONCAT(B.DQBZM02,A.DQBZM02),A.DQBZM02) FROM dqbzm A LEFT JOIN dqbzm B ON A.DQBZM_DQBZM01 = B.DQBZM01 WHERE A.DQBZM01= '"+Olist.get(i)+"'), " +
+						     " (SELECT CK02 FROM CK WHERE GSXX01 = '"+hbid+"'),'2')";
+						Map row = getRow(SQL, null, 0);
+						execSQL(o2o, SQL, row);
+				 }
+			}else if(Nlist.size() > Olist.size()){
+				 Nlist.removeAll(Olist);
+				 for (int i = 0; i < Nlist.size(); i++) {
+					 SQL = "INSERT INTO W_DQCK(DQXX01,CK01,DQXX02,CK02,TYPE) " +
+						     " VALUES('"+Nlist.get(i)+"',(SELECT CK01 FROM CK WHERE GSXX01 = '"+hbid+"'),(SELECT DQBZM02 FROM DQBZM WHERE DQBZM01 = '"+Nlist.get(i)+"'), " +
+						     " (SELECT CK02 FROM CK WHERE GSXX01 = '"+hbid+"'),'2')";
+						Map row = getRow(SQL, null, 0);
+						execSQL(o2o, SQL, row);
+				}
+			} 
+		} catch (Exception e) {
+			throw e;
+		}
+		return resultMap;
+	}
+	
+	 
+}
+ 
